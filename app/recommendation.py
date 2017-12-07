@@ -56,18 +56,43 @@ class Recommendation:
 
     # Display the recommendation for a user
     def make_recommendation(self, user):
-        movie = choice(list(self.movies.values())).title
+        sim_matrix = self.compute_all_similarities(user)
+        best_5_users = sorted(sim_matrix.items(), key=lambda sim: sim[1], reverse=True)[:5]
+        best_5_users = [self.test_users[user[0]] for user in best_5_users]
 
-        return "Vos recommandations : " + ", ".join([movie])
+        best_titles = set()
+        visited_titles = set()
+        for user in best_5_users:
+            for movie in user.good_ratings:
+                if movie.title in visited_titles:
+                    best_titles.add(movie.title)
+                    visited_titles.remove(movie.title)
+                if movie.title not in best_titles:
+                    visited_titles.add(movie.title)
+
+        return "Vos recommandations : " + ", ".join(best_titles)
 
     # Compute the similarity between two users
     @staticmethod
     def get_similarity(user_a, user_b):
-        return 1
+        similarity = 0
+        for a_good in user_a.good_ratings:
+            if a_good in user_b.good_ratings:
+                similarity += 1
+
+        for a_bad in user_a.bad_ratings:
+            if a_bad in user_b.bad_ratings:
+                similarity += 1
+
+        return similarity
 
     # Compute the similarity between a user and all the users in the data set
     def compute_all_similarities(self, user):
-        return []
+        result = {}
+        for test_user_id, test_user in self.test_users.items():
+            test_user_norm = Recommendation.get_user_norm(test_user)
+            result[test_user_id] = Recommendation.get_similarity(user, test_user) / test_user_norm
+        return result
 
     @staticmethod
     def get_best_movies_from_users(users):
@@ -79,7 +104,7 @@ class Recommendation:
 
     @staticmethod
     def get_user_norm(user):
-        return 1
+        return len(user.good_ratings) + len(user.bad_ratings) + len(user.neutral_ratings)
 
     # Return a vector with the normalised ratings of a user
     @staticmethod
